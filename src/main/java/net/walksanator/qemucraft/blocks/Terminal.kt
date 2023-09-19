@@ -89,8 +89,8 @@ class TerminalEntity(pos: BlockPos, state: BlockState) : BlockEntity(QemuCraft.b
 
     fun pushKey(char: Char): Boolean {
         val byte: Byte = when (char) {
-            in '\u0001'..'\u007F' -> char.code.toByte()
-            else -> when (char.toInt()) {
+            in '\u0001'..'\u007F' -> char.code.toByte() // lower ascii characters
+            else -> when (char.toInt()) { //remap some GL charachters to our font
                 GLFW.GLFW_KEY_BACKSPACE -> 0x08
                 GLFW.GLFW_KEY_ENTER -> 0x0D
                 GLFW.GLFW_KEY_HOME -> 0x80
@@ -99,11 +99,12 @@ class TerminalEntity(pos: BlockPos, state: BlockState) : BlockEntity(QemuCraft.b
                 GLFW.GLFW_KEY_DOWN -> 0x83
                 GLFW.GLFW_KEY_LEFT -> 0x84
                 GLFW.GLFW_KEY_RIGHT -> 0x85
+                GLFW.GLFW_KEY_TAB -> 0x09
                 else -> null
             }?.toByte()
         } ?: return false
 
-        //QemuCraft.LOGGER.info("%s %s".format(char,byte))
+        //QemuCraft.LOGGER.info("char: %s byte: %s".format(char,byte))
 
         screen[1*80+0] = byte
         var idx = 0
