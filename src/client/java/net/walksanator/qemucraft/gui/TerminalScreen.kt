@@ -12,6 +12,8 @@ import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.Screen
 import net.minecraft.client.gui.tooltip.Tooltip
 import net.minecraft.client.gui.widget.ButtonWidget
+import net.minecraft.client.gui.widget.ButtonWidget.Builder
+import net.minecraft.client.gui.widget.ClickableWidget
 import net.minecraft.client.render.BufferRenderer
 import net.minecraft.client.render.VertexFormat.DrawMode
 import net.minecraft.client.render.VertexFormats
@@ -19,13 +21,11 @@ import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.network.PacketByteBuf
 import net.minecraft.text.Text
 import net.minecraft.util.math.Vec3d
-import net.walksanator.qemucraft.QemuCraft
 import net.walksanator.qemucraft.Shaders
 import net.walksanator.qemucraft.blocks.TerminalEntity
 import net.walksanator.qemucraft.init.Packets
 import net.walksanator.qemucraft.util.math.Mat4
 import org.lwjgl.BufferUtils
-import org.lwjgl.glfw.GLFW
 import org.lwjgl.opengl.*
 import org.lwjgl.opengl.GL11.GL_FLOAT
 import org.lwjgl.opengl.GL11.GL_TRIANGLES
@@ -40,17 +40,13 @@ private val screenTex = createTexture()
 private val charsetTex = createTexture()
 
 class TerminalScreen(val te: TerminalEntity) : Screen(Text.translatable("block.retrocomputers.terminal")) {
-
+    private val dedup_chars = "`-=;',./[]\\1234567890QWERTYUIOPASDFGHJKLZXCVBNM".toList()
     private var uMvp = 0
     private var uCharset = 0
     private var uScreen = 0
     private var aXyz = 0
     private var aUv = 0
-    private var onoff = ButtonWidget.builder(
-        Text.literal("power")
-    ) { button -> QemuCraft.LOGGER.info("power pressed") }.dimensions(width / 2 - 205, height/2, 200, 20)
-        .tooltip(Tooltip.of(Text.literal("Tooltip of Power Button")))
-        .build();
+    private lateinit var onoff: ClickableWidget
 
     private var fb: Framebuffer? = null
 
@@ -65,7 +61,7 @@ class TerminalScreen(val te: TerminalEntity) : Screen(Text.translatable("block.r
         super.render(context, mouseX, mouseY, delta)
         renderBackground(context)
 
-        //render(context!!.matrices, mouseX, mouseY, delta)
+        render(context!!.matrices, mouseX, mouseY, delta)
     }
 
      private fun render(matrices: MatrixStack, mouseX: Int, mouseY: Int, delta: Float) {
@@ -165,29 +161,19 @@ class TerminalScreen(val te: TerminalEntity) : Screen(Text.translatable("block.r
 
     override fun keyPressed(key: Int, scancode: Int, modifiers: Int): Boolean {
         if (super.keyPressed(key, scancode, modifiers)) return true
-
-        val result: Byte? = when (key) {
-            GLFW.GLFW_KEY_BACKSPACE -> 0x08
-            GLFW.GLFW_KEY_ENTER -> 0x0D
-            GLFW.GLFW_KEY_HOME -> 0x80
-            GLFW.GLFW_KEY_END -> 0x81
-            GLFW.GLFW_KEY_UP -> 0x82
-            GLFW.GLFW_KEY_DOWN -> 0x83
-            GLFW.GLFW_KEY_LEFT -> 0x84
-            GLFW.GLFW_KEY_RIGHT -> 0x85
-            else -> null
-        }?.toByte()
-
-        if (result != null) pushKey(result)
-
-        return result != null
+        val char = key.toChar()
+        if (
+            dedup_chars.contains(char)
+            ) return true
+        pushKey(char)
+        return true
     }
 
     override fun charTyped(c: Char, modifiers: Int): Boolean {
         if (super.charTyped(c, modifiers)) return true
 
-        val result: Byte? = when (c) {
-            in '\u0001'..'\u007F' -> c.code.toByte()
+        val result: Char? = when (c) {
+            in '\u0001'..'\u007F' -> c
             else -> null
         }
 
@@ -196,15 +182,21 @@ class TerminalScreen(val te: TerminalEntity) : Screen(Text.translatable("block.r
         return result != null
     }
 
-    private fun pushKey(c: Byte) {
+    private fun pushKey(c: Char) {
         val buffer = PacketByteBuf(Unpooled.buffer())
         buffer.writeBlockPos(te.pos)
-        buffer.writeByte(c.toInt())
+        buffer.writeChar(c.toInt())
         ClientPlayNetworking.send(Packets.Server.TERMINAL_KEY_TYPED, buffer)
     }
 
     override fun init() {
         //client!!.keyboard.setRepeatEvents(true)
+        onoff = ButtonNoKeyboardWidget
+            .Builder(Text.literal("Power")) { btn -> btn.message = Text.literal(
+                if (btn.message.string.equals("Power")) "Shutdown" else "Power")
+                println("CLICKED")
+            }
+                .dimensions(0,0,100,20).build()
         addDrawableChild(onoff)
         initDrawData()
         initFb()
@@ -261,6 +253,77 @@ class TerminalScreen(val te: TerminalEntity) : Screen(Text.translatable("block.r
     }
 
     override fun shouldPause() = false
+
+}
+
+class ButtonNoKeyboardWidget(
+    x: Int,
+    y: Int,
+    width: Int,
+    height: Int,
+    msg: Text,
+    pa: PressAction,
+    nar: NarrationSupplier
+) : ButtonWidget(x, y, width, height, msg, pa, nar) {
+    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        return false
+    }
+
+    override fun isFocused(): Boolean = false
+
+    class Builder(private val message: Text, private val onPress: PressAction) {
+        private var tooltip: Tooltip? = null
+        private var x = 0
+        private var y = 0
+        private var width = 150
+        private var height = 20
+        private var narrationSupplier: NarrationSupplier
+
+        init {
+            narrationSupplier = DEFAULT_NARRATION_SUPPLIER
+        }
+
+        fun position(x: Int, y: Int): Builder {
+            this.x = x
+            this.y = y
+            return this
+        }
+
+        fun width(width: Int): Builder {
+            this.width = width
+            return this
+        }
+
+        fun size(width: Int, height: Int): Builder {
+            this.width = width
+            this.height = height
+            return this
+        }
+
+        fun dimensions(x: Int, y: Int, width: Int, height: Int): Builder {
+            return position(x, y).size(width, height)
+        }
+
+        fun tooltip(tooltip: Tooltip?): Builder {
+            this.tooltip = tooltip
+            return this
+        }
+
+        fun narrationSupplier(narrationSupplier: NarrationSupplier): Builder {
+            this.narrationSupplier = narrationSupplier
+            return this
+        }
+
+        fun build(): ButtonNoKeyboardWidget {
+            val buttonWidget = ButtonNoKeyboardWidget(
+                x,
+                y, width, height, message, onPress, narrationSupplier
+            )
+            buttonWidget.tooltip = tooltip
+            return buttonWidget
+        }
+    }
+
 
 }
 

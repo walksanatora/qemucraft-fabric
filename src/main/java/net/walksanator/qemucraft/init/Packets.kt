@@ -8,7 +8,6 @@ import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec3d
-import net.walksanator.qemucraft.QemuCraft
 import net.walksanator.qemucraft.QemuCraft.MOD_ID
 import net.walksanator.qemucraft.blocks.TerminalEntity
 
@@ -28,7 +27,7 @@ object Packets {
 
     private fun onKeyTypedTerminal(server: MinecraftServer, player: ServerPlayerEntity, handler: ServerPlayNetworkHandler, buf: PacketByteBuf, responseSender: PacketSender) {
         val pos = buf.readBlockPos()
-        val k = buf.readByte()
+        val k = buf.readChar()
 
         val dist = player.getCameraPosVec(1f).squaredDistanceTo(Vec3d.ofCenter(pos))
         if (dist > 10 * 10) return

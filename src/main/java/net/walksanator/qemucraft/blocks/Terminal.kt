@@ -24,6 +24,7 @@ import net.walksanator.qemucraft.Peripheral
 import net.walksanator.qemucraft.QemuCraft
 import net.walksanator.qemucraft.init.Packets
 import net.walksanator.qemucraft.util.unsigned
+import org.lwjgl.glfw.GLFW
 import kotlin.experimental.xor
 
 class TerminalBlock(settings: Settings) : BlockWithEntity(settings), BlockEntityTicker<TerminalEntity> {
@@ -86,7 +87,23 @@ class TerminalEntity(pos: BlockPos, state: BlockState) : BlockEntity(QemuCraft.b
 
     var char = 0
 
-    fun pushKey(byte: Byte): Boolean {
+    fun pushKey(char: Char): Boolean {
+        val byte: Byte = when (char) {
+            in '\u0001'..'\u007F' -> char.code.toByte()
+            else -> when (char.toInt()) {
+                GLFW.GLFW_KEY_BACKSPACE -> 0x08
+                GLFW.GLFW_KEY_ENTER -> 0x0D
+                GLFW.GLFW_KEY_HOME -> 0x80
+                GLFW.GLFW_KEY_END -> 0x81
+                GLFW.GLFW_KEY_UP -> 0x82
+                GLFW.GLFW_KEY_DOWN -> 0x83
+                GLFW.GLFW_KEY_LEFT -> 0x84
+                GLFW.GLFW_KEY_RIGHT -> 0x85
+                else -> null
+            }?.toByte()
+        } ?: return false
+
+        //QemuCraft.LOGGER.info("%s %s".format(char,byte))
 
         screen[1*80+0] = byte
         var idx = 0
@@ -154,18 +171,18 @@ class TerminalEntity(pos: BlockPos, state: BlockState) : BlockEntity(QemuCraft.b
 
      fun storeData(at: Byte, data: Byte) {
         when (val off = at.unsigned) {
-            0x00 -> row = data.unsigned % 50
+            0x00 -> row = data.unsigned % 25
             0x01 -> cx = data.unsigned % 80
-            0x02 -> cy = data.unsigned % 50
+            0x02 -> cy = data.unsigned % 25
             0x03 -> cm = data.unsigned % 3
             0x04 -> kbs = data.unsigned % 16
             0x05 -> kbp = data.unsigned % 16
             0x06 -> kb[kbs] = data
             0x07 -> command = data
             0x08 -> bx1 = data.unsigned % 80
-            0x09 -> by1 = data.unsigned % 50
+            0x09 -> by1 = data.unsigned % 25
             0x0A -> bx2 = data.unsigned % 80
-            0x0B -> by2 = data.unsigned % 50
+            0x0B -> by2 = data.unsigned % 25
             0x0C -> bw = data.unsigned
             0x0D -> bh = data.unsigned
             0x0E -> char = data.unsigned
@@ -238,5 +255,4 @@ class TerminalEntity(pos: BlockPos, state: BlockState) : BlockEntity(QemuCraft.b
             char = tag.getByte("char").unsigned
         }
     }
-
 }
