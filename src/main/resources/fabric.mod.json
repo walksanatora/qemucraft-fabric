@@ -1,31 +1,31 @@
 {
 	"schemaVersion": 1,
-	"id": "modid",
+	"id": "qemucraft",
 	"version": "${version}",
-	"name": "Example mod",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "QemuCraft",
+	"description": "A Virtual Computer mod that uses native qemu",
 	"authors": [
-		"Me!"
+		"walksanator"
 	],
 	"contact": {
 		"homepage": "https://fabricmc.net/",
 		"sources": "https://github.com/FabricMC/fabric-example-mod"
 	},
 	"license": "CC0-1.0",
-	"icon": "assets/modid/icon.png",
+	"icon": "assets/qemucraft/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.example.ExampleMod"
+			"net.walksanator.qemucraft.QemuCraft"
 		],
 		"client": [
-			"com.example.ExampleModClient"
+			"net.walksanator.qemucraft.QemuCraftClient"
 		]
 	},
 	"mixins": [
-		"modid.mixins.json",
+		"qemucraft.mixins.json",
 		{
-			"config": "modid.client.mixins.json",
+			"config": "qemucraft.client.mixins.json",
 			"environment": "client"
 		}
 	],
